@@ -3,8 +3,8 @@ Contributors: BrianLayman
 Donate link: http://thecodecave.com/donate
 Tags: password,security,page,member,login,cms
 Requires at least: 2.5
-Tested up to: 3.8.1
-Stable tag: 1.1.5
+Tested up to: 4.2
+Stable tag: 1.1.7
 
 Allows a central login page for password protected child pages. Enter a password and you are taken to the newest child page with a matching password.
 
@@ -76,3 +76,9 @@ This video describes the usage of the plugin:
 
 = 1.1.5 =
 * Fixed an error on the Invalid Password response
+
+= 1.1.6 =
+* Fixed several warnings and possible version compatibility issues.
+
+= 1.1.7 =
+* Fixed another warning.
