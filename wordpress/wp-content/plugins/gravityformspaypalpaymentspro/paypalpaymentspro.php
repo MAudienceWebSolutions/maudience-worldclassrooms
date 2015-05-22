@@ -3,7 +3,7 @@
 Plugin Name: Gravity Forms PayPal Payments Pro Add-On
 Plugin URI: http://www.gravityforms.com
 Description: Integrates Gravity Forms with PayPal Payments Pro, enabling end users to purchase goods and services through Gravity Forms.
-Version: 1.5
+Version: 1.6
 Author: rocketgenius
 Author URI: http://www.rocketgenius.com
 
@@ -35,7 +35,7 @@ class GFPayPalPaymentsPro {
     private static $path = "gravityformspaypalpaymentspro/paypalpaymentspro.php";
     private static $url = "http://www.gravityforms.com";
     private static $slug = "gravityformspaypalpaymentspro";
-    private static $version = "1.5";
+    private static $version = "1.6";
     private static $min_gravityforms_version = "1.7";
     public static $product_payment_response = "";
     public static $transaction_response = "";
@@ -2075,12 +2075,14 @@ class GFPayPalPaymentsPro {
 
         require_once(self::get_base_path() . "/data.php");
 
+        $form = $validation_result["form"];
+        
         // Determine if feed specific api settings are enabled
         $local_api_settings = array();
         if($config["meta"]["api_settings_enabled"] == 1)
              $local_api_settings = self::get_local_api_settings($config);
              
-        $billing = self::prepare_credit_card_transaction($validation_result["form"],$config);
+        $billing = self::prepare_credit_card_transaction($form,$config);
         $amount = $billing['AMT'];
 
         if($config["meta"]["type"] == "product"){
@@ -2090,11 +2092,11 @@ class GFPayPalPaymentsPro {
                 self::log_debug("Amount is 0. No need to authorize payment, but act as if transaction was successful");
 
                 //blank out credit card field if this is the last page
-                if(self::is_last_page($validation_result["form"])){
+                if(self::is_last_page($form)){
                     $_POST["input_{$card_field["id"]}_1"] = "";
                 }
                 //creating dummy transaction response if there are any visible product fields in the form
-                if(self::has_visible_products($validation_result["form"])){
+                if(self::has_visible_products($form)){
                     self::$transaction_response = array("transaction_id" => "N/A", "amount" => 0, "transaction_type" => 1, 'config_id' => $config['id']);
                 }
             }
@@ -2102,7 +2104,7 @@ class GFPayPalPaymentsPro {
             {
             
                 self::log_debug("Capturing payment in the amount of " . $amount . ".");
-                $response = self::capture_product_payment($config,$validation_result["form"]);
+                $response = self::capture_product_payment($config,$form);
                 if($response["RESULT"] == 0)
                 {
                     self::log_debug("Payment in the amount of " . $amount . " was captured successfully.");
@@ -2134,7 +2136,7 @@ class GFPayPalPaymentsPro {
             $setup_fee_amount = 0;
             if($config["meta"]["setup_fee_enabled"])
             {
-                $lead = RGFormsModel::create_lead($validation_result["form"]);
+                $lead = RGFormsModel::create_lead($form);
                 $product_billing_data = self::get_product_billing_data($form, $lead, $config);
                 $products = $product_billing_data["products"];
                 $setup_fee_product = rgar($products["products"], $config["meta"]["setup_fee_amount_field"]);
@@ -2146,7 +2148,7 @@ class GFPayPalPaymentsPro {
             self::$recurring_profile = $billing;
             
             self::log_debug("Creating recurring profile.");
-            $response = self::create_subscription_profile($config,$validation_result["form"],$setup_fee_amount);
+            $response = self::create_subscription_profile($config,$form,$setup_fee_amount);
 
             if($response["RESULT"] == 0)
             {
@@ -2664,7 +2666,7 @@ class GFPayPalPaymentsPro {
         return in_array($current_page, array("gf_paypalpaymentspro"));
     }
 
-    function set_logging_supported($plugins)
+    public static function set_logging_supported($plugins)
     {
         $plugins[self::$slug] = "PayPal Payments Pro";
         return $plugins;

@@ -1,4 +1,10 @@
 ------------------------------------------------------------
+Version 1.6
+    - Fixed a notice in the logging tab with the logging add-on enabled.
+    - Fixed issue with initial setup up fee amount not being charged for subscription profiles.
+	- Updated POT file
+
+------------------------------------------------------------
 Version 1.5
 	- Updated the Password entry in the settings page to hide the value of password from the browser when inspecting the element.
 	- Fixed invalid function call.

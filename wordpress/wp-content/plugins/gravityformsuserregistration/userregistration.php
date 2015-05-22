@@ -3,12 +3,12 @@
 Plugin Name: Gravity Forms User Registration Add-On
 Plugin URI: http://www.gravityforms.com
 Description: Allows WordPress users to be automatically created upon submitting a Gravity Form
-Version: 1.9.1
+Version: 2.3
 Author: rocketgenius
 Author URI: http://www.rocketgenius.com
 
 ------------------------------------------------------------------------
-Copyright 2009 rocketgenius
+Copyright 2009-2015 rocketgenius
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ class GFUser {
     private static $path = "gravityformsuserregistration/userregistration.php";
     private static $url = "http://www.gravityforms.com";
     private static $slug = "gravityformsuserregistration";
-    private static $version = "1.9.1";
+    private static $version = "2.3";
     private static $min_gravityforms_version = "1.7";
     private static $supported_fields = array( "checkbox", "radio", "select", "text", "website", "textarea", "email", "hidden", "number", "phone", "multiselect", "post_title",
 		                                      "post_tags", "post_custom_field", "post_content", "post_excerpt" );
@@ -85,6 +85,8 @@ class GFUser {
             // process users from unspammed entries
             add_action("gform_update_status", array("GFUser", "gf_process_user"), 10, 3);
 
+            add_action("gform_paypal_fulfillment", array("GFUser", "add_paypal_user"), 10, 8);
+
             if(self::is_user_registration_page()){
 
                 //enqueueing sack for AJAX requests
@@ -121,29 +123,30 @@ class GFUser {
                 add_action('gform_entry_info', array('GFUser', 'entry_activation_button'), 10, 2);
             }
         }
-        else{
-            //loading data class
-            require_once(self::get_base_path() . "/data.php");
+		else{
 
-            // handling post submission
-            add_action('gform_pre_submission', array( __class__, 'handle_existing_images_submission' ) );
-            add_action("gform_after_submission", array("GFUser", "gf_create_user"), 10, 2);
-            add_filter("gform_validation", array("GFUser", "user_registration_validation"));
+			// add paypal ipn hooks
+			add_action("gform_paypal_fulfillment", array("GFUser", "add_paypal_user"), 10, 8);
+			add_action("gform_subscription_canceled", array("GFUser", "downgrade_paypal_user"), 10, 8);
 
-            // add paypal ipn hooks
-            add_action("gform_paypal_fulfillment", array("GFUser", "add_paypal_user"), 10, 8);
-            add_action("gform_subscription_canceled", array("GFUser", "downgrade_paypal_user"), 10, 8);
+			// ManageWP premium update filters
+			add_filter( 'mwp_premium_update_notification', array('GFUser', 'premium_update_push') );
+			add_filter( 'mwp_premium_perform_update', array('GFUser', 'premium_update') );
+		}
 
-            // custom registration form page
-            add_action('wp_loaded', array('GFUser', 'custom_registration_page'));
+		//loading data class
+		require_once(self::get_base_path() . "/data.php");
 
-            // add support for prepopulating update feeds
-            add_action('gform_pre_render', array('GFUser', 'maybe_prepopulate_form'));
+		// handling post submission
+		add_action('gform_pre_submission', array( __class__, 'handle_existing_images_submission' ) );
+		add_action("gform_after_submission", array("GFUser", "gf_create_user"), 10, 2);
+		add_filter("gform_validation", array("GFUser", "user_registration_validation"));
 
-            // ManageWP premium update filters
-            add_filter( 'mwp_premium_update_notification', array('GFUser', 'premium_update_push') );
-            add_filter( 'mwp_premium_perform_update', array('GFUser', 'premium_update') );
-        }
+		// custom registration form page
+		add_action('wp_loaded', array('GFUser', 'custom_registration_page'));
+
+		// add support for prepopulating update feeds
+		add_action('gform_pre_render', array('GFUser', 'maybe_prepopulate_form'));
 
         // buddypress hooks
         if(self::is_bp_active()) {
@@ -155,6 +158,8 @@ class GFUser {
             self::add_multisite_hooks();
         }
     }
+
+
 
     public static function update_feed_active(){
         check_ajax_referer('rg_user_update_feed_active','rg_user_update_feed_active');
@@ -224,8 +229,8 @@ class GFUser {
         else{
             $version_info = RGUserUpgrade::get_version_info(self::$slug, self::get_key(), self::$version);
 
-            if(!$version_info["is_valid_key"]){
-                $new_version = version_compare(self::$version, $version_info["version"], '<') ? __('There is a new version of Gravity Forms User Registration Add-On available.', 'gravityformsuserregistration') .' <a class="thickbox" title="Gravity Forms User Registration Add-On" href="plugin-install.php?tab=plugin-information&plugin=' . self::$slug . '&TB_iframe=true&width=640&height=808">'. sprintf(__('View version %s Details', 'gravityformsuserregistration'), $version_info["version"]) . '</a>. ' : '';
+            if ( ! rgar($version_info, "is_valid_key" ) ) {
+                $new_version = version_compare(self::$version, rgar($version_info, "version"), '<') ? __('There is a new version of Gravity Forms User Registration Add-On available.', 'gravityformsuserregistration') .' <a class="thickbox" title="Gravity Forms User Registration Add-On" href="plugin-install.php?tab=plugin-information&plugin=' . self::$slug . '&TB_iframe=true&width=640&height=808">'. sprintf(__('View version %s Details', 'gravityformsuserregistration'), rgar($version_info, "version") ) . '</a>. ' : '';
                 $message = $new_version . sprintf(__('%sRegister%s your copy of Gravity Forms to receive access to automatic upgrades and support. Need a license key? %sPurchase one now%s.', 'gravityformsuserregistration'), '<a href="admin.php?page=gf_settings">', '</a>', '<a href="http://www.gravityforms.com">', '</a>') . '</div></td>';
                 RGUserUpgrade::display_plugin_message($message);
             }
@@ -567,11 +572,13 @@ class GFUser {
                 <div class="hr-divider"></div>
 
                 <h3><?php _e("Uninstall User Registration Add-On", "gravityformsuserregistration") ?></h3>
-                <div class="delete-alert"><?php _e("Warning! This operation deletes ALL User Registration Feeds.", "gravityformsuserregistration") ?>
-                    <?php
-                    $uninstall_button = '<input type="submit" name="uninstall" value="' . __("Uninstall User Registration Add-On", "gravityformsuserregistration") . '" class="button" onclick="return confirm(\'' . __("Warning! ALL User Registration Feeds will be deleted. This cannot be undone. \'OK\' to delete, \'Cancel\' to stop", "gravityformsuserregistration") . '\');"/>';
-                    echo apply_filters("gform_user_registration_uninstall_button", $uninstall_button);
-                    ?>
+                <div class="delete-alert alert_red">
+                    <h3><i class="fa fa-exclamation-triangle gf_invalid"></i> Warning</h3>
+                    
+                    <div class="gf_delete_notice" "=""><strong><?php _e("Warning! This operation deletes ALL user registration feeds.", "gravityformsuserregistration") ?></strong><?php _e("If you continue, you will not be able to recover any User Registration data.", "gravityformsuserregistration") ?>
+                    </div>    
+
+                    <input type="submit" name="uninstall" value="Uninstall User Registration Add-on" class="button" onclick="return confirm('<?php _e("Warning! ALL settings will be deleted. This cannot be undone. \'OK\' to delete, \'Cancel\' to stop", "gravityformsuserregistration") ?>');">
                 </div>
 
             <?php } ?>
@@ -1073,7 +1080,7 @@ class GFUser {
                 var isUpdateFeed = jQuery('select#feed_type').val() == 'update';
 
                 if(email_options == '<option value=""></option>' && jQuery('select#feed_type').val() == 'create') {
-                    displayMessage('<?php _e('This field does not have any <strong>Email</strong> fields. Please add an Email field and try again.', 'gravityformsuserregistration'); ?>', '#feed_settings');
+                    displayMessage('<?php _e('This form does not have any <strong>Email</strong> fields. Please add an Email field and try again.', 'gravityformsuserregistration'); ?>', '#feed_settings');
                     jQuery("#user_registration_wait").hide();
                     return;
                 } else {
@@ -1437,7 +1444,7 @@ class GFUser {
 					str += '<select id="gf_user_registration_value" name="gf_user_registration_value" class="optin_select">'
 
 	                for(var i=0; i<field.choices.length; i++){
-	                    var fieldValue = field.choices[i].value ? field.choices[i].value : field.choices[i].text;
+	                    var fieldValue = ( field.choices[i].value ? field.choices[i].value : field.choices[i].text ).toString();
 	                    var isSelected = fieldValue == selectedValue;
 	                    var selected = isSelected ? "selected='selected'" : "";
 	                    if(isSelected)
@@ -1775,7 +1782,20 @@ class GFUser {
     public static function save_buddypress_meta($config) {
 
         $json = stripslashes(RGForms::post("gf_buddypress_config"));
-        $config["meta"]["buddypress_meta"] = GFCommon::json_decode($json);
+        $data = GFCommon::json_decode($json);
+        $clean_data = array();
+
+        foreach( $data as $item ) {
+
+            // possible user may want to "overwrite" meta with blank value so only check for name to ensure valid meta
+            if( empty( $item['meta_name'] ) )
+                continue;
+
+            $clean_data[] = $item;
+
+        }
+
+        $config["meta"]["buddypress_meta"] = $clean_data;
 
         return $config;
     }
@@ -1783,7 +1803,11 @@ class GFUser {
     public static function prepare_buddypress_data($user_id, $config, $entry) {
 
         // required for user to display in the directory
-        bp_update_user_meta($user_id, 'last_activity', true);
+        if( function_exists( 'bp_update_user_last_activity' ) ) {
+            bp_update_user_last_activity( $user_id );
+        } else {
+            bp_update_user_meta( $user_id, 'last_activity', true );
+        }
 
         $buddypress_meta = rgars($config, 'meta/buddypress_meta');
 
@@ -1795,6 +1819,9 @@ class GFUser {
 
         $i = 0;
         foreach($buddypress_meta as $meta_item) {
+
+            if( empty( $meta_item['meta_name'] ) || empty( $meta_item['meta_value'] ) )
+                continue;
 
             $buddypress_row[$i]['field_id'] = $meta_item['meta_name'];
             $buddypress_row[$i]['user_id'] = $user_id;
@@ -1821,7 +1848,11 @@ class GFUser {
                 $meta_value = array_filter($meta_value, 'GFUser::not_empty');
             }
             else if($bp_field->type == 'datebox' && $gform_field['type'] == 'date'){
-                $meta_value = strtotime(self::get_prepared_value($gform_field, $meta_item['meta_value'], $entry));
+                if( version_compare( BP_VERSION, '2.1.1', '<' ) ) {
+                    $meta_value = strtotime(self::get_prepared_value($gform_field, $meta_item['meta_value'], $entry));
+                } else {
+                    $meta_value = self::get_prepared_value($gform_field, $meta_item['meta_value'], $entry ) . ' 00:00:00';
+                }
             }
             else {
                 $meta_value = self::get_prepared_value($gform_field, $meta_item['meta_value'], $entry);
@@ -1829,6 +1860,8 @@ class GFUser {
 
             $buddypress_row[$i]['value'] = $meta_value;
             $buddypress_row[$i]['last_update'] = date( 'Y-m-d H:i:s' );
+            $buddypress_row[$i]['field'] = $bp_field;
+
             $i++;
         }
 
@@ -2028,25 +2061,25 @@ class GFUser {
             remove_filter('update_welcome_email', 'bp_core_filter_blog_welcome_email');
 
         // is create site option enabled?
-        if(!$ms_options['create_site'])
-            return;
+        if( ! rgar( $ms_options, 'create_site' ) ) {
+            return false;
+        }
 
         $site_data = self::get_site_data($lead, $form, $config, $is_update_feed);
         if(!$site_data)
-            return;
+            return false;
 
         // create the new site!
         $meta    = apply_filters( 'gform_user_registration_new_site_meta', array( 'public' => 1 ), $form, $lead, $config, $user_id, $is_update_feed );
         $blog_id = wpmu_create_blog($site_data['domain'], $site_data['path'], $site_data['title'], $user_id, $meta, $current_site->id);
 
         if(is_wp_error($blog_id))
-            return;
+            return false;
 
         // add entry ID to site meta for new site
         GFUserData::update_site_meta($blog_id, 'entry_id', $lead['id']);
 
-        $dashboard_blog = get_dashboard_blog();
-        if(!is_super_admin($user_id) && get_user_option('primary_blog', $user_id) == $dashboard_blog->blog_id) {
+        if(!is_super_admin($user_id) && get_user_option('primary_blog', $user_id) == $current_site->blog_id) {
             update_user_option($user_id, 'primary_blog', $blog_id, true);
         }
 
@@ -2104,45 +2137,72 @@ class GFUser {
 
     // Hook into Gravity Forms
     public static function gf_create_user($entry, $form, $fulfilled = false) {
-    	self::log_debug("in gf_create_user");
+    	self::log_debug( "form #{$form['id']} - starting gf_create_user()." );
         global $wpdb;
 
         // if the entry is marked as spam
-        if(rgar($entry, 'status') == 'spam')
-            return;
+        if(rgar($entry, 'status') == 'spam') {
+	        self::log_debug( 'gf_create_user(): aborting. Entry is marked as spam.' );
+
+	        return;
+        }
 
         $config = self::get_active_config($form, $entry);
         $is_update_feed = rgars($config, 'meta/feed_type') == 'update';
 
         // if there is no registration feed or the feed is not active, abandon ship
-        if(!$config || !$config['is_active'])
-            return;
+        if(!$config || !$config['is_active']) {
+	        self::log_debug( 'gf_create_user(): aborting. No feed or feed is inactive.' );
+
+	        return;
+        }
+
+		$user_data = self::get_user_data($entry, $form, $config, $is_update_feed);
+		if(!$user_data) {
+			self::log_debug( 'gf_create_user(): aborting. user_login or user_email are empty.' );
+
+			return;
+		}
 
         // if PayPal Add-on was used for this entry, integrate
         $paypal_config = self::get_paypal_config($form["id"], $entry);
         $delay_paypal_registration = 0;
-        if($paypal_config) {
-            //$paypal_config = self::get_paypal_config($form["id"], $entry);
-            $order_total = GFCommon::get_order_total($form, $entry);
+		$password = '';
+		if($paypal_config) {
 
-            // delay the registration IF:
-            // - the delay registration option is checked
-            // - the order total does NOT equal zero (no delay since there will never be a payment)
-            // - the payment has not already been fulfilled
-            $delay_paypal_registration = $paypal_config['meta']['delay_registration'];
-            if($paypal_config && $delay_paypal_registration && $order_total != 0 && !$fulfilled)
-                return;
-        }
+			$order_total = GFCommon::get_order_total($form, $entry);
+
+			// delay the registration IF:
+			// - the delay registration option is checked
+			// - the order total does NOT equal zero (no delay since there will never be a payment)
+			// - the payment has not already been fulfilled
+			$delay_paypal_registration = $paypal_config['meta']['delay_registration'];
+			if($paypal_config && $delay_paypal_registration && $order_total != 0 && !$fulfilled) {
+				self::log_debug( 'gf_create_user(): aborting. Registration delayed by PayPal feed configuration.' );
+
+				//Saving encrypted password in meta
+				gform_update_meta( $entry['id'], 'userregistration_password', self::encrypt( $user_data['password'] ) );
+				return;
+			}
+			else if($paypal_config && $delay_paypal_registration && $order_total != 0 && $fulfilled) {
+				//reading encrypted password from meta and removing meta
+				$password = gform_get_meta( $entry['id'], 'userregistration_password' );
+				if( $password ){
+					$password = self::decrypt( $password );
+					gform_delete_meta( $entry['id'], 'userregistration_password' );
+				}
+
+			}
+		}
 
         // provide filter to allow add-ons to disable registration if needed
         $disable_registration = apply_filters('gform_disable_registration', false, $form, $entry, $fulfilled);
 
-        if($disable_registration)
-            return;
+        if($disable_registration) {
+	        self::log_debug( 'gf_create_user(): aborting. gform_disable_registration hook was used.' );
 
-        $user_data = self::get_user_data($entry, $form, $config, $is_update_feed);
-        if(!$user_data)
-            return;
+	        return;
+        }
 
         $user_activation = rgars($config, 'meta/user_activation');
 
@@ -2156,7 +2216,8 @@ class GFUser {
             $meta = array(
                 'lead_id'    => $entry['id'],
                 'user_login' => $user_data['user_login'],
-                'email'      => $user_data['user_email']
+                'email'      => $user_data['user_email'],
+				'password'	 => self::encrypt( $user_data['password'] ),
             );
 
             $meta = apply_filters( 'gform_user_registration_signup_meta',               $meta, $form, $entry, $config );
@@ -2165,7 +2226,7 @@ class GFUser {
             $ms_options = rgars($config, 'meta/multisite_options');
 
             // save current user details in wp_signups for future activation
-            if(is_multisite() && $ms_options['create_site'] && $site_data = self::get_site_data($entry, $form, $config)) {
+            if(is_multisite() && rgar( $ms_options, 'create_site' ) && $site_data = self::get_site_data($entry, $form, $config)) {
                 wpmu_signup_blog($site_data['domain'], $site_data['path'], $site_data['title'], $user_data['user_login'], $user_data['user_email'], $meta);
             } else {
                 // wpmu_signup_user() does the following sanitization of the user_login before saving it to the database,
@@ -2192,19 +2253,22 @@ class GFUser {
         	//only run create_user when manual/email activation NOT set
         	if (!$user_activation){
         		self::log_debug("in gf_create_user - calling create_user");
-            	self::create_user($entry, $form, $config);
+            	self::create_user( $entry, $form, $config, $password );
 			}
         }
 
     }
 
-    public static function create_user($lead, $form, $config = false) {
+    public static function create_user( $lead, $form, $config = false, $password='' ) {
 		self::log_debug("in create_user with form id " . $form["id"] . " and lead: " . print_r($lead, true));
         if(!$config)
             $config = self::get_active_config($form, $lead);
 
         $meta = rgar($config, 'meta');
         $user_data = self::get_user_data($lead, $form, $config);
+		if( !empty( $password ) ){
+			$user_data['password'] = $password;
+		}
         $user_id = self::user_login_exists($user_data['user_login']); // @review, may not needs this here since we will likely handle updating user differently
 
         // create the user and password, then add user meta
@@ -2402,6 +2466,8 @@ class GFUser {
 
     private static function add_user_meta($user_id, $config, $form, $entry, $name_fields) {
 
+		self::log_debug('adding user meta');
+
         $standard_meta = array(
             'firstname' => 'first_name',
             'lastname' => 'last_name'
@@ -2419,24 +2485,32 @@ class GFUser {
         // add custom user meta
         $custom_meta = rgars($config, 'meta/user_meta');
 
+
+
         if(is_array($custom_meta) && !empty($custom_meta)) {
             $value = '';
             foreach($custom_meta as $custom_meta_item) {
+				self::log_debug("adding meta item: {$custom_meta_item['meta_name']}");
 
                 // skip empty meta items
-                if(!$custom_meta_item['meta_name'] || !$custom_meta_item['meta_value'])
+                if(!$custom_meta_item['meta_name'] || !$custom_meta_item['meta_value']){
+					self::log_debug("Meta item is empty. Skipping it");
                     continue;
+				}
 
                 $field = RGFormsModel::get_field($form, $custom_meta_item['meta_value']);
                 $value = self::get_prepared_value($field, $custom_meta_item['meta_value'], $entry);
+				self::log_debug("Meta item mapped to field: {$field["id"]} - value: {$value}");
 
                 if($custom_meta_item['meta_name'] == 'user_url' && $value) {
                     self::update_user_property($user_id, 'user_url', $value);
                 }
                 else if(rgblank($value)) {
+					self::log_debug("Deleting meta item since it has a blank value.");
                     delete_user_meta($user_id, $custom_meta_item['meta_name']);
                 }
                 else{
+					self::log_debug("Updating/Adding meta item.");
                 	update_user_meta($user_id, $custom_meta_item['meta_name'], $value);
                 }
             }
@@ -2562,15 +2636,17 @@ class GFUser {
             apply_filters('gform_username', self::get_meta_value('username', $config, $form, $entry), $config, $form, $entry),
             $config, $form, $entry );
         $user_email = self::get_prepared_value($email_field, $config['meta']['email'], $entry);
-        $user_pass = RGForms::post('input_' . $config['meta']['password']);
+        $user_pass = rgpost( 'input_' . $config['meta']['password'] );
+		//$user_pass = stripslashes( $user_pass );
 
         if( !function_exists('username_exists') )
             require_once(ABSPATH . WPINC . "/registration.php");
 
         // if password field is not hidden and is on the current page we are validating, validate it
         if( !$is_password_hidden && $password_field['pageNumber'] == $pagenum ) {
-            if( strpos( $user_pass, "\\" ) !== false )
+            if( strpos( $user_pass, "\\" ) !== false ){
                 $form = self::add_validation_failure( $config['meta']['password'], $form, __('Passwords may not contain the character "\"', 'gravityformsuserregistration') );
+			}
         }
 
         if( is_multisite() ) {
@@ -2679,10 +2755,11 @@ class GFUser {
     private static function get_prepared_value($field, $input_id, $entry, $is_username = false){
 
         $space = (self::is_bp_active() && $is_username) ? '' : ' ';
+	    $value = '';
 
         switch(RGFormsModel::get_input_type($field)){
             case "name":
-                if(strpos($input_id, '.') === false){
+                if( strpos( $input_id, '.' ) === false && $field['nameFormat'] != 'simple' ) {
                     $prefix = trim(rgar($entry, "{$input_id}.2"));
                     $first = trim(rgar($entry, "{$input_id}.3"));
                     $last = trim(rgar($entry, "{$input_id}.6"));
@@ -2693,10 +2770,10 @@ class GFUser {
                     $name .= !empty($name) && !empty($last) ? $space . $last : $last;
                     $name .= !empty($name) && !empty($suffix) ? $space . $suffix : $suffix;
 
-                    return $name;
+	                $value = $name;
                 }
                 else{
-                    return rgar($entry, $input_id);
+	                $value =rgar($entry, $input_id);
                 }
             break;
 
@@ -2716,23 +2793,25 @@ class GFUser {
                     $address .= !empty($address) && !empty($zip_value) ? " $zip_value" : $zip_value;
                     $address .= !empty($address) && !empty($country_value) ? " $country_value" : $country_value;
 
-                    return $address;
+                    $value = $address;
                 }
                 else{
-                    return rgar($entry, $input_id);
+                    $value = rgar($entry, $input_id);
                 }
             break;
 
             default:
-                $val = rgar($entry, $input_id);
+	            $value = rgar($entry, $input_id);
 
                 //Post category fields come with Category Name and ID in the value (i.e. Austin:51). Only returning the name
-                $val = self::maybe_get_category_name($field, $val);
+	            $value = self::maybe_get_category_name($field, $value);
 
-                return $val;
             break;
         }
 
+	    $value = apply_filters( 'gform_user_registration_prepared_value', $value, $field, $input_id, $entry, $is_username );
+
+	    return $value;
     }
 
     // simulates entry format for inputs
@@ -2812,7 +2891,8 @@ class GFUser {
 
         $id = rgget('id');
 
-        $registration_config = $form ? self::get_active_config($form) : false;
+        //$registration_config = $form ? self::get_active_config($form) : false;
+		$registration_config = $form ? GFUserData::get_feeds_by_form($form["id"]) : false;
         $registration_feeds = GFUserData::get_feeds();
         $registration_forms = array();
 
@@ -3098,14 +3178,17 @@ class GFUser {
 				//but they have a POST field, they should expect that
                 //if($is_update_feed && GFCommon::is_post_field($field))
                 //    continue;
-                $inputs = rgar($field,"inputs");
+
+                $inputs = $field instanceof GF_Field ? $field->get_entry_inputs() : rgar( $field, 'inputs' );
+
                 if(is_array($inputs) && !empty($inputs)){
 
                     if(RGFormsModel::get_input_type($field) == "address" || RGFormsModel::get_input_type($field) == "name")
                         $fields[] =  array($field["id"], GFCommon::get_label($field) . " (" . __("Full" , "gravityformsuserregistration") . ")");
 
-                    foreach($field["inputs"] as $input)
+                    foreach($inputs as $input) {
                         $fields[] =  array($input["id"], GFCommon::get_label($field, $input["id"]));
+                    }
 
                 }
                 //else if(!$field["displayOnly"]){
@@ -3132,8 +3215,8 @@ class GFUser {
                     if($field["type"] != $types && rgar($field,'inputType') != $types)
                         continue;
                 }
-				$inputs = rgar($field,"inputs");
-                if(is_array($inputs)){
+	            $inputs = $field instanceof GF_Field ? $field->get_entry_inputs() : rgar( $field, 'inputs' );
+	            if(is_array($inputs)){
 
                     foreach($inputs as $input)
                         $fields[] =  array($input["id"], GFCommon::get_label($field, $input["id"]));
@@ -3153,8 +3236,8 @@ class GFUser {
         if(is_array($form["fields"])){
             foreach($form["fields"] as $field){
 
-				$inputs = rgar($field,"inputs");
-                if(is_array($inputs) && !empty($inputs)){
+	            $inputs = $field instanceof GF_Field ? $field->get_entry_inputs() : rgar( $field, 'inputs' );
+	            if(is_array($inputs) && !empty($inputs)){
 
                     if(RGFormsModel::get_input_type($field) == "checkbox") {
                         $fields[] =  array($field["id"], GFCommon::get_label($field));
@@ -3207,12 +3290,10 @@ class GFUser {
             add_action("gform_user_registration_add_option_section", array("GFUser", "add_buddypress_options"), 10, 2);
             add_filter("gform_user_registration_save_config", array("GFUser", "save_buddypress_meta"));
 
-        } else {
-
-            // buddypress non-admin hooks
-            add_action("gform_user_updated", array("GFUser", "prepare_buddypress_data"), 10, 3);
-
         }
+
+		// buddypress non-admin hooks
+		add_action("gform_user_updated", array("GFUser", "prepare_buddypress_data"), 10, 3);
 
         // as of UR 1.5 pending activations, the "gform_user_registered" hook can be fired both in the admin (when manually activating)
         // pending activations and on the front-end (by default)
@@ -3230,17 +3311,15 @@ class GFUser {
             add_filter("gform_user_registration_save_config", array("GFUser", "save_multisite_config"));
             add_filter("gform_user_registration_config_validation", array("GFUser", "validate_multisite_config"), 10, 2);
 
-        } else {
-
-            // multisite non-admin hooks
-            add_action("gform_user_registration_validation", array("GFUser", "validate_multisite_submission"), 10, 3);
-            add_action("gform_user_registered", array("GFUser", "create_new_multisite"), 10, 4);
-            add_action("gform_user_updated", array("GFUser", "create_new_multisite"), 10, 4);
-
-            // add paypal ipn hooks for multisite
-            add_action("gform_subscription_canceled", array("GFUser", "downgrade_paypal_site"), 10, 2);
-
         }
+
+		// multisite non-admin hooks
+		add_action("gform_user_registration_validation", array("GFUser", "validate_multisite_submission"), 10, 3);
+		add_action("gform_user_registered", array("GFUser", "create_new_multisite"), 10, 4);
+		add_action("gform_user_updated", array("GFUser", "create_new_multisite"), 10, 4);
+
+		// add paypal ipn hooks for multisite
+		add_action("gform_subscription_canceled", array("GFUser", "downgrade_paypal_site"), 10, 2);
 
     }
 
@@ -3276,8 +3355,16 @@ class GFUser {
             $redirect = true;
 
         // add support for multi-site
-        $script_name = substr($_SERVER['SCRIPT_NAME'], -13, 13); // get last 12 characters of script name (we want wp-login.php);
-        if( is_multisite() && $script_name == 'wp-signup.php' )
+        $script_name = substr($_SERVER['SCRIPT_NAME'], -13, 13); // get last 13 characters of script name (we want wp-signup.php);
+
+        // Setting $referer_script to avoid breaking 'Create a New Site' functionality from My Sites screen
+        if( isset( $_SERVER['HTTP_REFERER'] ) ) {
+        	$referer_script = substr($_SERVER['HTTP_REFERER'], -12, 12); // if $_SERVER['HTTP_REFERER'] is set get last 12 characters of script name (we want my-sites.php);
+         } else {
+         	$referer_script = ''; // Prevent Undefined variable notice if no $_SERVER['HTTP_REFERER'] is set (direct access to wp-signup.php)
+         }
+
+        if( is_multisite() && $script_name == 'wp-signup.php' && $referer_script != 'my-sites.php' )
             $redirect = true;
 
         if(!$redirect)
@@ -3461,10 +3548,13 @@ class GFUser {
             foreach($buddypress_meta as $meta_item) {
                 if(rgar($meta_item, 'meta_value')) {
                     $field_id = rgar($meta_item, 'meta_value');
-                    $mapped_fields[(string)$field_id] = xprofile_get_field_data(rgar($meta_item, 'meta_name'), $user->ID);
+                    $value = xprofile_get_field_data( rgar( $meta_item, 'meta_name' ), $user->ID );
+                    $mapped_fields[(string)$field_id] = is_array( $value ) ? array_map( 'html_entity_decode', $value ) : html_entity_decode( $value );
                 }
             }
         }
+
+	    $mapped_fields = apply_filters( 'gform_user_registration_user_data_pre_populate', $mapped_fields, $form, $feed );
 
         // get all fields for cheap check inside field loop
         $mapped_field_ids = array_map('intval', array_keys($mapped_fields));
@@ -3507,12 +3597,14 @@ class GFUser {
                 if(is_array($value)) {
                     $cb_values = $value;
                 } else {
-                    foreach($field['inputs'] as &$input) {
+	                $inputs = $field['inputs'];
+                    foreach($inputs as &$input) {
                         $cb_values[] = rgar($mapped_fields, (string)$input['id']);
                     }
+	                $field['inputs'] = $inputs;
                 }
 
-                $value = implode(',', $cb_values);
+                $value = implode(',', $cb_values );
 
                 break;
 
@@ -3539,14 +3631,14 @@ class GFUser {
             default:
 
                 // handle complex fields
-                if(is_array(rgar($field, 'inputs'))) {
-
-                    foreach($field['inputs'] as &$input) {
+                $inputs = $field instanceof GF_Field ? $field->get_entry_inputs() : rgar( $field, 'inputs' );
+                if(is_array($inputs)) {
+                    foreach($inputs as &$input) {
                         $filter_name = self::prepopulate_input( $input['id'], rgar($mapped_fields, (string)$input['id']));
                         $field['allowsPrepopulate'] = true;
                         $input['name'] = $filter_name;
                     }
-
+	                $field['inputs'] = $inputs;
                 } else {
 
                     $value = is_array(rgar($mapped_fields, $field['id'])) ? implode(',', rgar($mapped_fields, $field['id'])) : rgar($mapped_fields, $field['id']);
@@ -3595,19 +3687,31 @@ class GFUser {
         if( !$config )
             return;
 
-        $user_meta = rgars( $config, 'meta/user_meta' );
-        $upload_files = json_decode( rgpost('gform_uploaded_files'), ARRAY_A );
+        $meta = rgars( $config, 'meta/user_meta' );
 
-        foreach( $user_meta as $meta_item ) {
+        if( function_exists( 'xprofile_get_field_data' ) ) {
+            $bp_meta = rgars( $config, 'meta/buddypress_meta' );
+            if( is_array( $bp_meta ) ) {
+                $bp_meta = array_map( create_function( '$a', '$a["is_bp"] = true; return $a;' ), $bp_meta );
+                $meta = array_merge( $meta, $bp_meta );
+            }
+        }
+
+        foreach( $meta as $meta_item ) {
 
             $field = RGFormsModel::get_field( $form, $meta_item['meta_value'] );
             $input_name = "input_{$field['id']}";
 
-            if( RGFormsModel::get_input_type( $field ) != 'fileupload' )
+            if( RGFormsModel::get_input_type( $field ) != 'fileupload' ) {
                 continue;
+            }
 
             if( self::is_prepopulated_file_upload( $form['id'], $input_name ) ) {
-                $_gf_uploaded_files[$input_name] = get_user_meta( get_current_user_id(), $meta_item['meta_name'], true );
+                if( rgar( $meta_item, 'is_bp' ) ) {
+                    $_gf_uploaded_files[$input_name] = xprofile_get_field_data( $meta_item['meta_name'], get_current_user_id() );
+                } else {
+                    $_gf_uploaded_files[$input_name] = get_user_meta( get_current_user_id(), $meta_item['meta_name'], true );
+                }
             }
 
         }
@@ -3634,7 +3738,7 @@ class GFUser {
     public static function is_prepopulated_file_upload( $form_id, $input_name ) {
 
         // prepopulated files will be stored in the 'gform_uploaded_files' field
-        $uploaded_files = json_decode( rgpost('gform_uploaded_files'), ARRAY_A );
+        $uploaded_files = json_decode( rgpost('gform_uploaded_files') , ARRAY_A );
 
         // file is prepopulated if it is present in the 'gform_uploaded_files' field AND is not a new file upload
         $in_uploaded_files = is_array( $uploaded_files ) && array_key_exists( $input_name, $uploaded_files ) && !empty( $uploaded_files[$input_name] );
@@ -3861,7 +3965,7 @@ class GFUser {
 		return $plugins;
 	}
 
-	private static function log_error($message){
+	public static function log_error($message){
 		if(class_exists("GFLogging"))
 		{
 			GFLogging::include_logger();
@@ -3869,7 +3973,7 @@ class GFUser {
 		}
 	}
 
-	private static function log_debug($message){
+	public static function log_debug($message){
 		if(class_exists("GFLogging"))
 		{
 			GFLogging::include_logger();
@@ -3881,6 +3985,44 @@ class GFUser {
         return rgars( $feed, 'meta/feed_type' ) == 'update';
     }
 
+
+
+	//TODO: remove this when GFCommon has an updated version of encrypt() and decrypt() supporting encryption via mysql
+	public static function encrypt( $text ) {
+		$use_mcrypt = apply_filters('gform_use_mcrypt', function_exists( 'mcrypt_encrypt' ) );
+
+		if ( $use_mcrypt ){
+			$iv_size = mcrypt_get_iv_size( MCRYPT_RIJNDAEL_256, MCRYPT_MODE_ECB );
+			$key = substr( md5( wp_salt( 'nonce' ) ), 0, $iv_size );
+
+			$encrypted_value = trim( base64_encode( mcrypt_encrypt( MCRYPT_RIJNDAEL_256, $key, $text, MCRYPT_MODE_ECB, mcrypt_create_iv( $iv_size, MCRYPT_RAND ) ) ) );
+		}
+		else{
+			global $wpdb;
+			$encrypted_value = base64_encode( $wpdb->get_var( $wpdb->prepare('SELECT AES_ENCRYPT(%s, %s) AS data', $text, wp_salt( 'nonce' ) ) ) );
+		}
+
+		return $encrypted_value;
+	}
+
+	//TODO: remove this when GFCommon has an updated version of encrypt() and decrypt() supporting encryption via mysql
+	public static function decrypt( $text ) {
+
+		$use_mcrypt = apply_filters('gform_use_mcrypt', function_exists( 'mcrypt_decrypt' ) );
+
+		if ( $use_mcrypt ){
+			$iv_size = mcrypt_get_iv_size( MCRYPT_RIJNDAEL_256, MCRYPT_MODE_ECB );
+			$key = substr( md5( wp_salt( 'nonce' ) ), 0, $iv_size );
+
+			$decrypted_value = trim( mcrypt_decrypt( MCRYPT_RIJNDAEL_256, $key, base64_decode( $text ), MCRYPT_MODE_ECB, mcrypt_create_iv( $iv_size, MCRYPT_RAND ) ) );
+		}
+		else{
+			global $wpdb;
+			$decrypted_value = $wpdb->get_var( $wpdb->prepare('SELECT AES_DECRYPT(%s, %s) AS data', base64_decode( $text ), wp_salt( 'nonce' ) ) );
+		}
+
+		return $decrypted_value;
+	}
 }
 
 
