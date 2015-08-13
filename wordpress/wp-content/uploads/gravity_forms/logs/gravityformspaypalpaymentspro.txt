@@ -1,0 +1,2 @@
+2015-05-25 21:12:29 - DEBUG --> Validating credentials. 
+2015-05-25 21:12:32 - DEBUG --> Validating credentials. 
