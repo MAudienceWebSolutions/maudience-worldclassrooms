@@ -1,0 +1,58 @@
+<?php
+register_post_type('faq', array(
+	'labels' => array(
+		'name' => __('FAQs', 'crb'),
+		'singular_name' => __('FAQ', 'crb'),
+		'add_new' => __('Add New', 'crb'),
+		'add_new_item' => __('Add new FAQ', 'crb'),
+		'view_item' => __('View FAQ', 'crb'),
+		'edit_item' => __('Edit FAQ', 'crb'),
+		'new_item' => __('New FAQ', 'crb'),
+		'view_item' => __('View FAQ', 'crb'),
+		'search_items' => __('Search FAQs', 'crb'),
+		'not_found' =>  __('No FAQs found', 'crb'),
+		'not_found_in_trash' => __('No FAQs found in trash', 'crb'),
+	),
+	'public' => true,
+	'exclude_from_search' => true,
+	'show_ui' => true,
+	'capability_type' => 'post',
+	'hierarchical' => false,
+	'_edit_link' => 'post.php?post=%d',
+	'rewrite' => array(
+		'slug' => 'faq',
+		'with_front' => false,
+	),
+	'query_var' => true,
+	'menu_icon' => 'dashicons-format-status',
+	'supports' => array('title', 'editor', 'page-attributes'),
+));
+
+register_post_type('tour', array(
+	'labels' => array(
+		'name' => __('Tours', 'crb'),
+		'singular_name' => __('Tour', 'crb'),
+		'add_new' => __('Add New', 'crb'),
+		'add_new_item' => __('Add new Tour', 'crb'),
+		'view_item' => __('View Tour', 'crb'),
+		'edit_item' => __('Edit Tour', 'crb'),
+		'new_item' => __('New Tour', 'crb'),
+		'view_item' => __('View Tour', 'crb'),
+		'search_items' => __('Search Tours', 'crb'),
+		'not_found' =>  __('No Tours found', 'crb'),
+		'not_found_in_trash' => __('No Tours found in trash', 'crb'),
+	),
+	'public' => true,
+	'exclude_from_search' => false,
+	'show_ui' => true,
+	'capability_type' => 'post',
+	'hierarchical' => true,
+	'_edit_link' => 'post.php?post=%d',
+	'rewrite' => array(
+		'slug' => 'tour',
+		'with_front' => false,
+	),
+	'query_var' => true,
+	'menu_icon' => 'dashicons-location-alt',
+	'supports' => array('title', 'editor', 'page-attributes', 'thumbnail'),
+));
