@@ -1,0 +1,374 @@
+# Loco Gettext template
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: World Classrooms\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: Thu Aug 21 2014 13:33:50 GMT+0200 (CEST)\n"
+"POT-Revision-Date: Fri Nov 28 2014 15:20:04 GMT+0100 (CET)\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: \n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-SourceCharset: UTF-8\n"
+"X-Poedit-Basepath: .\n"
+"X-Poedit-SearchPath-0: ..\n"
+"X-Poedit-KeywordsList: _:1;gettext:1;dgettext:2;ngettext:1,2;dngettext:2,3;"
+"__:1;_e:1;_c:1;_n:1,2;_n_noop:1,2;_nc:1,2;__ngettext:1,2;__ngettext_noop:1,2;"
+"_x:1,2c;_ex:1,2c;_nx:1,2,4c;_nx_noop:1,2,3c;_n_js:1,2;_nx_js:1,2,3c;"
+"esc_attr__:1;esc_html__:1;esc_attr_e:1;esc_html_e:1;esc_attr_x:1,2c;"
+"esc_html_x:1,2c;comments_number_link:2,3;t:1;st:1;trans:1;transChoice:1,2\n"
+"X-Generator: Loco - https://localise.biz/"
+
+#: ../includes/myworldclass-admin.php:12 ../includes/myworldclass-admin.php:30
+msgid "Balance"
+msgstr ""
+
+#: ../includes/myworldclass-admin.php:13 ../includes/myworldclass-admin.php:161 ..
+#: /includes/myworldclass-admin.php:287 ../includes/myworldclass-shortcodes.php:
+#: 43 ../includes/myworldclass-tours.php:112
+msgid "Tour Code"
+msgstr ""
+
+#: ../includes/myworldclass-admin.php:14
+msgid "Tour Total"
+msgstr ""
+
+#: ../includes/myworldclass-admin.php:15 ../includes/myworldclass-admin.php:165 ..
+#: /includes/myworldclass-admin.php:288 ../includes/myworldclass-shortcodes.php:47
+msgid "High School"
+msgstr ""
+
+#: ../includes/myworldclass-admin.php:137
+msgid "World Classrooms"
+msgstr ""
+
+#: ../includes/myworldclass-admin.php:140
+msgid "Current balance"
+msgstr ""
+
+#: ../includes/myworldclass-admin.php:154 ../includes/myworldclass-shortcodes.php:
+#: 35 ../includes/myworldclass-shortcodes.php:106
+msgid "Date of Birth"
+msgstr ""
+
+#: ../includes/myworldclass-admin.php:285 ../includes/myworldclass-shortcodes.php:
+#: 23 ../includes/myworldclass-shortcodes.php:90
+msgid "First Name"
+msgstr ""
+
+#: ../includes/myworldclass-admin.php:286 ../includes/myworldclass-shortcodes.php:
+#: 27 ../includes/myworldclass-shortcodes.php:94
+msgid "Last Name"
+msgstr ""
+
+#: ../includes/myworldclass-functions.php:176
+msgid "Phone Number"
+msgstr ""
+
+#: ../includes/myworldclass-functions.php:177 ../includes/myworldclass-shortcodes.
+#: php:39 ../includes/myworldclass-shortcodes.php:110
+msgid "Parent or Guardians Name"
+msgstr ""
+
+#: ../includes/myworldclass-functions.php:206 ../includes/myworldclass-functions.
+#: php:228
+msgid "First name can not be empty"
+msgstr ""
+
+#: ../includes/myworldclass-functions.php:210
+msgid "Last name can not be empty"
+msgstr ""
+
+#: ../includes/myworldclass-functions.php:214
+msgid "Email address can not be empty"
+msgstr ""
+
+#: ../includes/myworldclass-functions.php:216
+msgid "Invalid email address"
+msgstr ""
+
+#: ../includes/myworldclass-functions.php:220
+msgid "Phone number can not be empty"
+msgstr ""
+
+#: ../includes/myworldclass-functions.php:224
+msgid "Date of birth can not be empty"
+msgstr ""
+
+#: ../includes/myworldclass-settings.php:34
+msgid "Access Denied"
+msgstr ""
+
+#: ../includes/myworldclass-settings.php:93
+msgid "Update Settings"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:12
+msgid "Please login to view your profile."
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:18 ../includes/myworldclass-shortcodes.
+#: php:84
+msgid "Total Paid"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:20 ../includes/myworldclass-shortcodes.
+#: php:86
+msgid "Your Profile Details"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:31 ../includes/myworldclass-shortcodes.
+#: php:98
+msgid "Email Address"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:68
+msgid "Please login to edit your profile."
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:76
+msgid "Profile details updated"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:80
+msgid "Your profile details contains errors"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:85 ../includes/myworldclass-shortcodes.
+#: php:147
+msgid "View Profile"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:102
+msgid "Phone"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:116
+msgid "Save Profile Details"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:118
+msgid "* indicates a required field."
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:137
+msgid "Please login to view your payment history."
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:146
+msgid "Payment History"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:151
+msgid "Date"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:152 ../includes/myworldclass-tour-
+#: payments.php:87
+msgid "Transaction ID"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:153 ../includes/myworldclass-tour-
+#: payments.php:88
+msgid "Status"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:154 ../includes/myworldclass-tour-
+#: payments.php:90
+msgid "Amount"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:181
+msgid "You do not have a payment history."
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:211
+msgid "No tour connected with this account."
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:217
+#, php-format
+msgid "Payments closed for this tour on %s"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:224
+msgid "You have paid this tour in full."
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:238
+msgid "Total Cost of Tour"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:239
+#, php-format
+msgid "Amount Due by %s"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:254 ../includes/myworldclass-
+#: shortcodes.php:277
+#, php-format
+msgid "Return to %s"
+msgstr ""
+
+#: ../includes/myworldclass-shortcodes.php:256 ../includes/myworldclass-
+#: shortcodes.php:279
+msgid "Pay using PayPal"
+msgstr ""
+
+#: ../includes/myworldclass-tour-payments.php:13
+msgctxt "Post Type General Name"
+msgid "Tour Payments"
+msgstr ""
+
+#: ../includes/myworldclass-tour-payments.php:14
+msgctxt "Post Type Singular Name"
+msgid "Tour Payment"
+msgstr ""
+
+#: ../includes/myworldclass-tour-payments.php:15
+msgid "Tour Payments"
+msgstr ""
+
+#: ../includes/myworldclass-tour-payments.php:17
+msgid "Payments"
+msgstr ""
+
+#: ../includes/myworldclass-tour-payments.php:18
+msgid "View Tour Payment"
+msgstr ""
+
+#: ../includes/myworldclass-tour-payments.php:21
+msgid "Edit Tour Payment"
+msgstr ""
+
+#: ../includes/myworldclass-tour-payments.php:22
+msgid "Update Tour Payment"
+msgstr ""
+
+#: ../includes/myworldclass-tour-payments.php:23
+msgid "Search tour payments"
+msgstr ""
+
+#: ../includes/myworldclass-tour-payments.php:24
+msgid "No tour payments found"
+msgstr ""
+
+#: ../includes/myworldclass-tour-payments.php:25
+msgid "No tour payments found in the trash"
+msgstr ""
+
+#: ../includes/myworldclass-tour-payments.php:58 ../includes/myworldclass-tour-
+#: payments.php:61 ../includes/myworldclass-tour-payments.php:65 ..
+#: /includes/myworldclass-tour-payments.php:66 ../includes/myworldclass-tour-
+#: payments.php:67
+msgid "Tour Payment Updated."
+msgstr ""
+
+#: ../includes/myworldclass-tour-payments.php:63
+msgid "Tour Payment Enabled"
+msgstr ""
+
+#: ../includes/myworldclass-tour-payments.php:64
+msgid "Tour Payment Saved"
+msgstr ""
+
+#: ../includes/myworldclass-tour-payments.php:89
+msgid "Student"
+msgstr ""
+
+#: ../includes/myworldclass-tour-payments.php:91
+msgid "Notes"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:33
+msgctxt "Post Type General Name"
+msgid "Tours"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:34
+msgctxt "Post Type Singular Name"
+msgid "Tour"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:35
+msgid "Tours"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:36
+msgid "Parent Tour:"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:37
+msgid "All Tours"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:38
+msgid "View Tour"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:39 ../includes/myworldclass-tours.php:40
+msgid "Add New Tour"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:41
+msgid "Edit Tour"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:42
+msgid "Update Tour"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:43
+msgid "Search tours"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:44
+msgid "No tours found"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:45
+msgid "No tours found in the trash"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:86 ../includes/myworldclass-tours.php:89 ..
+#: /includes/myworldclass-tours.php:93 ../includes/myworldclass-tours.php:94 ..
+#: /includes/myworldclass-tours.php:95
+msgid "Tour Updated."
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:91
+msgid "Tour Enabled"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:92
+msgid "Tour Saved"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:113
+msgid "Cost"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:114
+msgid "Start Date"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:115
+msgid "Attendees"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:116
+msgid "Payment Due"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:195
+msgid "Tour Setup"
+msgstr ""
+
+#: ../includes/myworldclass-tours.php:204
+msgid "Costs"
+msgstr ""
