@@ -13,16 +13,35 @@ if ( ! function_exists( 'mywclass_get_settings' ) ) :
 		$default = array(
 			'redirect_login'     => 1,
 			'my_account_page_id' => 444,
-			'paypal' => array(
-				'sandbox' => 0,
-				'email' => '',
-				'item'  => 'Partial Payment for Tour %tour_code%',
-				'min'   => 0
+			'payments_page_id'   => 247,
+			'booking_legal'      => '',
+			'terms_legal'        => '',
+			'authorizenet'       => array(
+				'mode'     => 'test',
+				'test_api' => '',
+				'test_key' => '',
+				'live_api' => '',
+				'live_key' => ''
+			),
+			'common_downloads' => '',
+			'emails'             => array(
+				'enrolment' => array(
+					'subject'   => '',
+					'body'      => ''
+				),
+				'password'  => array(
+					'subject'   => '',
+					'body'      => ''
+				),
+				'payremind'  => array(
+					'subject'   => '',
+					'body'      => ''
+				)
 			)
 		);
 
 		$settings = get_option( 'world_classroom_prefs', $default );
-		return $settings;
+		return wp_parse_args( $settings, $default );
 
 	}
 endif;
@@ -39,7 +58,10 @@ if ( ! function_exists( 'mywclass_get_userdata' ) ) :
 		if ( $user === false ) return false;
 
 		$user->user_phone  = get_user_meta( $user_id, 'user_phone', true );
-		$user->dob         = get_user_meta( $user_id, 'user_dob', true );
+		$user->user_dob    = get_user_meta( $user_id, 'user_dob', true );
+		if ( is_numeric( $user->user_dob ) && strlen( $user->user_dob ) != 10 )
+			$user->user_dob = date( 'd/m/Y', $this->user->user_dob );
+
 		$user->parent_name = get_user_meta( $user_id, 'parent_name', true );
 		$user->tour_code   = get_user_meta( $user_id, 'tour_code', true );
 		$user->high_school = get_user_meta( $user_id, 'high_school', true );
@@ -73,24 +95,77 @@ endif;
  * @version 1.0
  */
 if ( ! function_exists( 'mywclass_update_users_balance' ) ) :
-	function mywclass_update_users_balance( $user_id = NULL, $amount = 0 ) {
+	function mywclass_update_users_balance( $user_id = NULL, $amount = 0, $add = true ) {
 
 		$balance = mywclass_get_users_balance( $user_id );
-		$new_balance = $balance + $amount;
+
+		if ( $add )
+			$new_balance = $balance + $amount;
+		else
+			$new_balance = $balance - $amount;
+
 		update_user_meta( $user_id, 'mywclass_balance', $new_balance );
 
 	}
 endif;
 
+/**
+ * Get Amount Owed
+ * @since 1.1
+ * @version 1.0
+ */
+if ( ! function_exists( 'mywclass_get_amount_owed' ) ) :
+	function mywclass_get_amount_owed( $user_id, $tour_id = NULL ) {
+
+		if ( $tour_id === NULL ) {
+			$tour_code = get_user_meta( $user_id, 'tour_code', true );
+			$tour_id   = mywclass_get_tour_by_code( $tour_code );
+		}
+
+		$cost      = mywclass_get_cost( $tour_id, $user_id );
+		$balance   = mywclass_get_users_balance( $user_id );
+
+		$remaining = $cost;
+		if ( $cost > 0 )
+			$remaining = $cost - $balance;
+
+		if ( $remaining < 0 )
+			$remaining = 0;
+
+		return number_format( $remaining, 2, '.', '' );
+
+	}
+endif;
 
 /**
  * Get Cost
- * @since 1.0.1
- * @version 1.0.1
+ * @since 1.0
+ * @version 1.1
  */
 if ( ! function_exists( 'mywclass_get_cost' ) ) :
 	function mywclass_get_cost( $tour_id = NULL, $student_id = NULL ) {
 
+		// Custom tour costs trumps all
+		$custom_tour_cost = get_user_meta( $student_id, 'custom_tour_cost', true );
+		if ( $custom_tour_cost != '' && is_numeric( $custom_tour_cost ) )
+			return number_format( (float) $custom_tour_cost, 2, '.', '' );
+
+		global $wpdb;
+
+		// First check if this is a user with the 1.1 version type of setup.
+		$table = $wpdb->prefix . 'tour_signups';
+		$check = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE tour_id = %d AND user_id = %d;", $tour_id, $student_id ) );
+
+		if ( isset( $check->id ) ) {
+
+			$tour = new MyWorldClass_Tour( $tour_id );
+			$tour->setup_signup( $check->id );
+
+			return $tour->get_total_due();
+
+		}
+
+		// Otherwise we use the "old" system.
 		$cost = 0;
 		$tour = new MyWorldClass_Tour( $tour_id );
 
@@ -135,7 +210,7 @@ if ( ! function_exists( 'mywclass_enqueue_front_scripts' ) ) :
 			'mywclass-my-account',
 			plugins_url( 'assets/css/my-account.css', MYWORLDCLASS ),
 			false,
-			MYWORLDCLASS_VERSION . '.1',
+			MYWORLDCLASS_VERSION . '.5',
 			'all'
 		);
 
@@ -171,6 +246,94 @@ if ( ! function_exists( 'mywclass_is_account_pages' ) ) :
 	}
 endif;
 
+if ( ! function_exists( 'mywclass_is_user_attending' ) ) :
+	function mywclass_is_user_attending( $post_id ) {
+
+		if ( ! is_user_logged_in() ) return false;
+
+		$user_id   = get_current_user_id();
+		$tour_code = get_user_meta( $user_id, 'tour_code', true );
+		if ( $tour_code == '' ) {
+
+			global $wpdb;
+
+			$table = $wpdb->prefix . 'tour_signups';
+			$check = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE tour_id = %d AND user_id = %d AND status != 'new';", $post_id, $user_id ) );
+
+			if ( $check !== NULL )
+				return true;
+
+			return false;
+
+		}
+
+		$tour_id = mywclass_get_tour_by_code( $tour_code );
+		if ( $tour_id == $post_id )
+			return true;
+
+		return false;
+
+	}
+endif;
+
+if ( ! function_exists( 'mywclass_show_attendee_message' ) ) :
+	function mywclass_show_attendee_message( $post_id ) {
+
+		$tour = new MyWorldClass_Tour( $post_id );
+
+?>
+<h4>Your Information</h4>
+<div class="intro-information">
+	<h6>Tour Destination:</h6>
+	<?php echo $tour->location; ?>
+	<h6>Tour Dates:</h6>
+	<?php echo $tour->start_date; ?> - <?php echo $tour->end_date; ?>
+	<h6>Tour Price:</h6>
+	<?php echo $tour->cost; ?>
+	<h6>Tour Leader:</h6>
+	<?php echo $tour->teacher_name; ?>
+</div>
+<?php
+
+	}
+endif;
+
+/**
+ * WP Head
+ * @since 1.1
+ * @version 1.0
+ */
+if ( ! function_exists( 'mywclass_wp_head' ) ) :
+	function mywclass_wp_head() {
+
+		if ( is_post_type_archive( 'tour' ) || is_singular( 'tour' ) ) {
+
+?>
+<meta name="robots" content="noindex,nofollow">
+<meta name="googlebot,googlebot-news,googlebot-image,bingbot,teoma" content="noindex,nofollow">
+<?php
+
+		}
+
+	}
+endif;
+
+/**
+ * Is Payment Page
+ * Checks if the current page is the payment page.
+ * Returns true or false. Should not be used in instances
+ * earlier than template_redirect!
+ * @since 1.0
+ * @version 1.0
+ */
+if ( ! function_exists( 'mywclass_is_payment_page' ) ) :
+	function mywclass_is_payment_page() {
+
+		return false;
+
+	}
+endif;
+
 /**
  * Add Custom Contact Methods
  * @since 1.0
@@ -179,7 +342,7 @@ endif;
 if ( ! function_exists( 'mywclass_add_custom_contact_methods' ) ) :
 	function mywclass_add_custom_contact_methods( $methods ) {
 
-		$methods['user_phone'] = __( 'Phone Number', 'myworldclass' );
+		$methods['user_phone']  = __( 'Phone Number', 'myworldclass' );
 		$methods['parent_name'] = __( 'Parent or Guardians Name', 'myworldclass' );
 		return $methods;
 
@@ -187,82 +350,173 @@ if ( ! function_exists( 'mywclass_add_custom_contact_methods' ) ) :
 endif;
 
 /**
- * Front End Profile Updates
+ * Template Redirects
+ * Handles front end profile updates along with blocking
+ * of visitors for the payments page.
  * @since 1.0
  * @version 1.0
  */
-if ( ! function_exists( 'mywclass_front_end_profile_updates' ) ) :
-	function mywclass_front_end_profile_updates() {
+if ( ! function_exists( 'mywclass_temlate_redirects' ) ) :
+	function mywclass_temlate_redirects() {
 
-		if ( ! is_user_logged_in() || ! mywclass_is_account_pages() ) return;
+		// Account page updates by member
+		if ( is_user_logged_in() && mywclass_is_account_pages() ) {
 
-		$cui = get_current_user_id();
+			$cui = get_current_user_id();
 
-		// Nothing to do?
-		if ( ! isset( $_POST['myaccount']['nonce'] ) || ! wp_verify_nonce( $_POST['myaccount']['nonce'], 'world-classes-edit-profile' . $cui ) ) return;
+			// Nothing to do?
+			if ( ! isset( $_POST['myaccount']['nonce'] ) || ! wp_verify_nonce( $_POST['myaccount']['nonce'], 'world-classes-edit-profile' . $cui ) ) return;
 
-		// Lets act
-		$user = new MyWorldClass_Student( $cui );
+			// Lets act
+			$user = new MyWorldClass_Student( $cui );
 
-		$errors = false;
+			$errors = false;
 
-		// First we validate our profile fields
-		$first_name = sanitize_text_field( $_POST['myaccount']['first_name'] );
-		if ( $first_name == '' )
-			$errors['first_name'] = __( 'First name can not be empty', 'myworldclass' );
+			// First we validate our profile fields
+			$first_name = sanitize_text_field( $_POST['myaccount']['first_name'] );
+			if ( $first_name == '' )
+				$errors['first_name'] = __( 'First name can not be empty', 'myworldclass' );
 
-		$last_name = sanitize_text_field( $_POST['myaccount']['last_name'] );
-		if ( $last_name == '' )
-			$errors['last_name'] = __( 'Last name can not be empty', 'myworldclass' );
+			$last_name = sanitize_text_field( $_POST['myaccount']['last_name'] );
+			if ( $last_name == '' )
+				$errors['last_name'] = __( 'Last name can not be empty', 'myworldclass' );
 
-		$user_email = sanitize_text_field( $_POST['myaccount']['user_email'] );
-		if ( $user_email == '' )
-			$errors['user_email'] = __( 'Email address can not be empty', 'myworldclass' );
-		elseif ( ! is_email( $user_email ) )
-			$errors['user_email'] = __( 'Invalid email address', 'myworldclass' );
+			$user_email = sanitize_text_field( $_POST['myaccount']['user_email'] );
+			if ( $user_email == '' )
+				$errors['user_email'] = __( 'Email address can not be empty', 'myworldclass' );
+			elseif ( ! is_email( $user_email ) )
+				$errors['user_email'] = __( 'Invalid email address', 'myworldclass' );
 
-		$user_phone = sanitize_text_field( $_POST['myaccount']['user_phone'] );
-		if ( $user_phone == '' )
-			$errors['user_phone'] = __( 'Phone number can not be empty', 'myworldclass' );
+			$user_phone = sanitize_text_field( $_POST['myaccount']['user_phone'] );
+			if ( $user_phone == '' )
+				$errors['user_phone'] = __( 'Phone number can not be empty', 'myworldclass' );
 
-		$user_dob = sanitize_text_field( $_POST['myaccount']['user_dob'] );
-		if ( $user_dob == '' )
-			$errors['user_dob'] = __( 'Date of birth can not be empty', 'myworldclass' );
+			$user_dob = sanitize_text_field( $_POST['myaccount']['user_dob'] );
+			if ( $user_dob == '' )
+				$errors['user_dob'] = __( 'Date of birth can not be empty', 'myworldclass' );
 
-		$parent_name = sanitize_text_field( $_POST['myaccount']['parent_name'] );
-		if ( $parent_name == '' )
-			$errors['parent_name'] = __( 'First name can not be empty', 'myworldclass' );
+			$parent_name = sanitize_text_field( $_POST['myaccount']['parent_name'] );
+			if ( $parent_name == '' )
+				$errors['parent_name'] = __( 'First name can not be empty', 'myworldclass' );
 
-		// No errors
-		if ( empty( $errors ) ) {
+			// No errors
+			if ( empty( $errors ) ) {
 
-			// First update the user object
-			$user = wp_update_user( array(
-				'ID'         => $cui,
-				'first_name' => $first_name,
-				'last_name'  => $last_name,
-				'user_email' => $user_email
-			) );
+				// First update the user object
+				$user = wp_update_user( array(
+					'ID'         => $cui,
+					'first_name' => $first_name,
+					'last_name'  => $last_name,
+					'user_email' => $user_email
+				) );
 
-			// Next we update the custom user meta
-			update_user_meta( $cui, 'user_phone', $user_phone );
-			update_user_meta( $cui, 'user_dob', $user_dob );
-			update_user_meta( $cui, 'parent_name', $parent_name );
+				// Next we update the custom user meta
+				update_user_meta( $cui, 'user_phone', $user_phone );
+				update_user_meta( $cui, 'user_dob', $user_dob );
+				update_user_meta( $cui, 'parent_name', $parent_name );
 
-			$url = add_query_arg( array( 'updated' => 1 ) );
-			wp_redirect( $url );
-			exit;
+				$url = add_query_arg( array( 'updated' => 1 ) );
+				wp_redirect( $url );
+				exit;
+
+			}
+
+			// Errors
+			else {
+
+				$url = add_query_arg( array( 'updated' => 0 ) );
+				wp_redirect( $url );
+				exit;
+
+			}
 
 		}
 
-		// Errors
-		else {
+	}
+endif;
 
-			$url = add_query_arg( array( 'updated' => 0 ) );
-			wp_redirect( $url );
-			exit;
+/**
+ * Templates Include
+ * Overrides the theme to load our own custom page template
+ * for the payments page.
+ * @since 1.0
+ * @version 1.0
+ */
+if ( ! function_exists( 'mywclass_template_includes' ) ) :
+	function mywclass_template_includes( $template ) {
+
+		if ( is_ajax() || is_admin() ) return $template;
+
+		if ( mywclass_is_account_pages() )
+			return MYWORLDCLASS_TEMPLATES_DIR . 'page-my-account.php';
+
+		global $wp, $post;
+
+		// Signup requsts loads the signup page
+		if ( isset( $wp->query_vars['signup'] ) ) {
+
+			// Populate the signup variable with the tour post ID
+			if ( isset( $post->ID ) )
+				$wp->query_vars['signup'] = $post->ID;
+
+			return MYWORLDCLASS_TEMPLATES_DIR . 'page-payments.php';
 
 		}
+
+		if ( is_singular( 'tour' ) )
+			return MYWORLDCLASS_TEMPLATES_DIR . 'single-tour.php';
+
+		return $template;
+
+	}
+endif;
+
+/**
+ * Body Classes
+ * @since 1.1
+ * @version 1.0
+ */
+if ( ! function_exists( 'mywclass_body_classes' ) ) :
+	function mywclass_body_classes( $classes ) {
+
+		global $wp;
+
+		if ( isset( $wp->query_vars['signup'] ) )
+			$classes[] = 'signing-up';
+
+		return $classes;
+
+	}
+endif;
+
+/**
+ * Theme Menu Adjustments
+ * Inserts custom links to the top navigation.
+ * @since 1.1
+ * @version 1.0
+ */
+if ( ! function_exists( 'mywclass_theme_top_menu_items' ) ) :
+	function mywclass_theme_top_menu_items( $items, $args ) {
+
+		if ( $args->theme_location == 'navigation' ) {
+
+			$prefs = mywclass_get_settings();
+			if ( is_user_logged_in() ) {
+
+				$items .= '<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-' . $prefs['my_account_page_id'] . '"><a href="' . esc_url( get_permalink( $prefs['my_account_page_id'] ) ) . '">My Account</a></li>';
+				$items .= '<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-logout"><a href="' . esc_url( wp_logout_url( home_url( '/' ) ) ) . '" style="color:red;">Logout</a></li>';
+
+			}
+
+			else {
+
+				$items .= '<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-login"><a href="' . esc_url( wp_login_url( get_permalink( $prefs['my_account_page_id'] ) ) ) . '" style="color:red;">Login</a></li>';
+
+			}
+
+		}
+
+		return $items;
 
 	}
 endif;
@@ -286,81 +540,91 @@ if ( ! function_exists( 'mywclass_login_redirect' ) ) :
 	}
 endif;
 
-
 /**
- * Handle PayPal Callbacks
- * @since 1.0
+ * Allow Email Login
+ * @since 1.1
  * @version 1.0
  */
-if ( ! function_exists( 'mywclass_handle_paypal_callbacks' ) ) :
-	function mywclass_handle_paypal_callbacks() {
+if ( ! function_exists( 'mywclass_allow_email_login' ) ) :
+	function mywclass_allow_email_login( $user, $username, $password ) {
 
-		if ( ! isset( $_REQUEST['partial_payment'] ) ) return;
+	    if ( is_email( $username ) ) {
+	        $user = get_user_by( 'email', $username );
+	        if ( $user ) $username = $user->user_login;
+	    }
 
-		update_option( 'catch_paypal_ipn', array(
-			'get' => $_GET,
-			'post' => $_POST
-		) );
+	    return wp_authenticate_username_password( null, $username, $password );
 
-		if ( mywclass_is_valid_paypal_call() ) {
+	}
+endif;
 
-			$user_id = absint( $_POST['custom'] );
+/**
+ * Adjust Login Header
+ * @since 1.1
+ * @version 1.0
+ */
+if ( ! function_exists( 'mywclass_login_header' ) ) :
+	function mywclass_login_header() {
+?>
+<style type="text/css">
+	body.login #login h1 a {
+		background-image: url(<?php echo get_stylesheet_directory_uri(); ?>/images/logo.png);
+		padding-bottom: 30px;
+		background-size: contain;
+		margin-bottom: 0;
+		width: 100%;
+		height: 50px;
+	}
+</style>
+<?php
+	}
+endif;
 
-			$student = new MyWorldClass_Student( $user_id );
-			if ( ! isset( $student->user->tour_code ) ) return;
+/**
+ * Clone Post
+ * @since 1.1
+ * @version 1.0
+ */
+if ( ! function_exists( 'myworldclass_clone_post' ) ) :
+	function myworldclass_clone_post() {
 
-			$error = '';
-			$new_balance = false;
-			$transaction_id = $_POST['txn_id'];
-			$amount_paid = $_POST['mc_gross'];
-			$status = $_POST['payment_status'];
+		if ( ! is_admin() || ! current_user_can( 'edit_users' ) || ! isset( $_REQUEST['do'] ) || $_REQUEST['do'] != 'clone' || ! isset( $_REQUEST['target'] ) ) return;
 
-			$payment = new MyWorldClass_Payments( $student->student_id );
+		$target = absint( $_REQUEST['target'] );
+		$post   = get_post( $target );
 
-			switch ( $status ) {
+		if ( ! isset( $post->post_type ) || ! in_array( $post->post_type, array( 'tour', 'tours' ) ) ) return;
 
-				case 'Completed' :
-				case 'Canceled_Reversal' :
+		$new_post = array(
+			'post_title'   => $post->post_title . ' Copy',
+			'post_type'    => $post->post_type,
+			'post_author'  => $post->post_author,
+			'post_content' => $post->post_content,
+			'post_status'  => 'draft'
+		);
 
-					$entry = 'Completed Payment';
-					$new_balance = $student->balance + $amount_paid;
+		$clone_id = wp_insert_post( $new_post );
 
-				break;
+		global $myworldclass_cloning;
 
-				case 'Refunded' :
-				case 'Reversed' :
+		if ( $clone_id !== NULL && ! is_wp_error( $clone_id ) ) {
 
-					$entry = 'Refunded Payment';
-					$new_balance = $student->balance - $amount_paid;
+			$meta = get_post_meta( $target );
 
-					if ( $status == 'Reversed' )
-						$error = $_POST['ReasonCode'];
-
-				break;
-
-				case 'Pending' :
-
-					$entry = 'Pending Payment';
-
-				break;
-
-				case 'Denied' :
-				case 'Failed' :
-				case 'Expired' :
-
-					$entry = 'Failed Payment';
-
-					if ( $status == 'Denied' )
-						$error = $_POST['ReasonCode'];
-
-				break;
-
+			if ( ! empty( $meta ) ) {
+				foreach ( $meta as $meta_key => $meta_value ) {
+					if ( $meta_key == 'tour_code' ) continue;
+					foreach ( $meta_value as $value )
+						add_post_meta( $clone_id, $meta_key, $value, true );
+				}
 			}
 
-			if ( $new_balance !== false )
-				update_user_meta( $student->student_id, 'mywclass_balance', $new_balance );
+			$myworldclass_cloning = true;
 
-			$payment->add_payment( $transaction_id, $status, $entry, $amount_paid, $error );
+		}
+		else {
+
+			$myworldclass_cloning = $clone_id->get_error_message();
 
 		}
 
@@ -368,93 +632,67 @@ if ( ! function_exists( 'mywclass_handle_paypal_callbacks' ) ) :
 endif;
 
 /**
- * Validate PayPal Call
- * @since 1.0
+ * Clone Admin Notices
+ * @since 1.1
  * @version 1.0
  */
-if ( ! function_exists( 'mywclass_is_valid_paypal_call' ) ) :
-	function mywclass_is_valid_paypal_call() {
+if ( ! function_exists( 'mywclass_clone_admin_notices' ) ) :
+	function mywclass_clone_admin_notices() {
 
-		$prefs = mywclass_get_settings();
-		$prefs = $prefs['paypal'];
-		
-		// PayPal Host
-		if ( $prefs['sandbox'] )
-			$host = 'www.sandbox.paypal.com';
+		global $myworldclass_cloning;
+
+		if ( $myworldclass_cloning === NULL || $myworldclass_cloning === false ) return;
+
+		if ( $myworldclass_cloning === true )
+			echo '<div class="updated"><p>Tour was successfully cloned.</p></div>';
 		else
-			$host = 'www.paypal.com';
+			echo '<div class="error"><p>Could not clone the tour. Reason given: ' . $myworldclass_cloning . '</p></div>';
 
-		$data = array();
-		foreach ( $_POST as $key => $value ) {
-			$data[ $key ] = stripslashes( $value );
+	}
+endif;
+
+/**
+ * Admin Enqueue
+ * @since 1.1
+ * @version 1.0
+ */
+if ( ! function_exists( 'mywclass_admin_enqueue' ) ) :
+	function mywclass_admin_enqueue( $hook ) {
+
+		if ( 'edit.php' != $hook && 'users.php' != $hook ) {
+			return;
 		}
 
-		// Prep Respons
-		$request = 'cmd=_notify-validate';
-		$get_magic_quotes_exists = false;
-		if ( function_exists( 'get_magic_quotes_gpc' ) )
-			$get_magic_quotes_exists = true;
+		wp_enqueue_style( 'myworldclass-admin', plugins_url( 'assets/css/admin.css', MYWORLDCLASS ) );
 
-		foreach ( $data as $key => $value ) {
-			if ( $get_magic_quotes_exists == true && get_magic_quotes_gpc() == 1 )
-				$value = urlencode( stripslashes( $value ) );
-			else
-				$value = urlencode( $value );
+	}
+endif;
 
-			$request .= "&$key=$value";
-		}
+/**
+ * Catch Tour Search
+ * @since 1.1
+ * @version 1.0
+ */
+if ( ! function_exists( 'mywclass_catch_tour_search' ) ) :
+	function mywclass_catch_tour_search() {
 
-		// Call PayPal
-		$curl_attempts = 3;
-		$attempt = 1;
-		$result = '';
-		// We will make a x number of curl attempts before finishing with a fsock.
-		do {
+		if ( isset( $_POST['find'] ) && $_POST['find'] == 'tour' && isset( $_POST['trip_id'] ) && $_POST['trip_id'] != '' ) {
 
-			$call = curl_init( "https://$host/cgi-bin/webscr" );
-			curl_setopt( $call, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1 );
-			curl_setopt( $call, CURLOPT_POST, 1 );
-			curl_setopt( $call, CURLOPT_RETURNTRANSFER, 1 );
-			curl_setopt( $call, CURLOPT_POSTFIELDS, $request );
-			curl_setopt( $call, CURLOPT_SSL_VERIFYPEER, 1 );
-			curl_setopt( $call, CURLOPT_CAINFO, MYWORLDCLASS_INC_DIR . '/cacert.pem' );
-			curl_setopt( $call, CURLOPT_SSL_VERIFYHOST, 2 );
-			curl_setopt( $call, CURLOPT_FRESH_CONNECT, 1 );
-			curl_setopt( $call, CURLOPT_FORBID_REUSE, 1 );
-			curl_setopt( $call, CURLOPT_HTTPHEADER, array( 'Connection: Close' ) );
-			$result = curl_exec( $call );
+			$trip_id = sanitize_text_field( $_POST['trip_id'] );
+			if ( strlen( $trip_id ) > 3 ) {
 
-			// End on success
-			if ( $result !== false ) {
-				curl_close( $call );
-				break;
-			}
+				$post_id = mywclass_get_tour_by_code( $trip_id );
+				if ( $post_id !== false ) {
 
-			curl_close( $call );
+					$url = get_permalink( $post_id );
+					wp_redirect( $url );
+					exit;
 
-			// Final try
-			if ( $attempt == $curl_attempts ) {
-				$header = "POST /cgi-bin/webscr HTTP/1.0\r\n";
-				$header .= "Content-Type: application/x-www-form-urlencoded\r\n";
-				$header .= "Content-Length: " . strlen( $request ) . "\r\n\r\n";
-				$fp = fsockopen( 'ssl://' . $host, 443, $errno, $errstr, 30 );
-				if ( $fp ) {
-					fputs( $fp, $header . $request );
-					while ( ! feof( $fp ) ) {
-						$result = fgets( $fp, 1024 );
-					}
-					fclose( $fp );
 				}
+
 			}
-			$attempt++;
 
-		} while ( $attempt <= $curl_attempts );
-			
-		if ( strcmp( $result, "VERIFIED" ) == 0 ) {
-			return true;
 		}
-
-		return false;
 
 	}
 endif;

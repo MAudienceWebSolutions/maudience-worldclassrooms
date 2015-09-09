@@ -37,7 +37,7 @@ if ( ! class_exists( 'MyWorldClass_Payments' ) ) :
 
 		public function load_user() {
 
-			$this->user = mywclass_get_userdata( $this->student_id );
+			$this->user    = mywclass_get_userdata( $this->student_id );
 			$this->balance = mywclass_get_users_balance( $this->student_id );
 
 			if ( isset( $this->user->tour_code ) )
@@ -49,6 +49,8 @@ if ( ! class_exists( 'MyWorldClass_Payments' ) ) :
 		}
 
 		public function load_tour() {
+
+			if ( ! isset( $this->user->tour_code ) ) return;
 
 			$tour_id = mywclass_get_tour_by_code( $this->user->tour_code );
 
@@ -68,7 +70,8 @@ if ( ! class_exists( 'MyWorldClass_Payments' ) ) :
 				FROM {$wpdb->posts} 
 				WHERE post_type = 'tour_payment' 
 				AND post_author = {$this->student_id} 
-				AND post_status != 'trash';" );
+				AND post_status != 'trash' 
+				ORDER BY post_date ASC;" );
 
 			$history = array();
 			if ( ! empty( $posts ) ) {
@@ -80,7 +83,9 @@ if ( ! class_exists( 'MyWorldClass_Payments' ) ) :
 						'amount' => get_post_meta( $post->ID, 'amount', true ),
 						'status' => get_post_meta( $post->ID, 'status', true ),
 						'note'   => get_post_meta( $post->ID, 'note', true ),
-						'errors' => get_post_meta( $post->ID, 'errors', true )
+						'errors' => get_post_meta( $post->ID, 'errors', true ),
+						'tour_id' => get_post_meta( $post->ID, 'tour_id', true ),
+						'type' => get_post_meta( $post->ID, 'type', true )
 					);
 
 				}
@@ -101,7 +106,15 @@ if ( ! class_exists( 'MyWorldClass_Payments' ) ) :
 
 		}
 
-		public function add_payment( $transaction_id, $status, $entry, $amount, $codes = '' ) {
+		public function add_payment( $transaction_id, $status, $data = array() ) {
+
+			$data = wp_parse_args( $data, array(
+				'note'    => '',
+				'amount'  => 0.00,
+				'errors'  => '',
+				'tour_id' => '',
+				'type'    => ''
+			) );
 
 			$post_id = $this->get_transaction( $transaction_id );
 			if ( $post_id === false ) {
@@ -113,25 +126,39 @@ if ( ! class_exists( 'MyWorldClass_Payments' ) ) :
 					'post_status' => 'publish'
 				) );
 
-			
 				if ( $post_id !== NULL && ! is_wp_error( $post_id ) ) {
 
-					add_post_meta( $post_id, 'status', $status );
-					add_post_meta( $post_id, 'note', $entry );
-					add_post_meta( $post_id, 'amount', $amount );
-					add_post_meta( $post_id, 'errors', $codes );
+					add_post_meta( $post_id, 'status',  $status, true );
+					add_post_meta( $post_id, 'note',    $data['note'], true );
+					add_post_meta( $post_id, 'amount',  $data['amount'], true );
+					add_post_meta( $post_id, 'errors',  $data['errors'], true );
+					add_post_meta( $post_id, 'tour_id', $data['tour_id'], true );
+					add_post_meta( $post_id, 'type',    $data['type'], true );
 
 				}
 
 			}
 			else {
 
-				update_post_meta( $post_id, 'status', $status );
-				update_post_meta( $post_id, 'note', $entry );
-				update_post_meta( $post_id, 'amount', $amount );
-				update_post_meta( $post_id, 'errors', $codes );
+				update_post_meta( $post_id, 'status',  $status );
+				update_post_meta( $post_id, 'note',    $data['note'] );
+				update_post_meta( $post_id, 'amount',  $data['amount'] );
+				update_post_meta( $post_id, 'errors',  $data['errors'] );
+				update_post_meta( $post_id, 'tour_id', $data['tour_id'] );
+				update_post_meta( $post_id, 'type',    $data['type'] );
 
 			}
+
+		}
+
+		public function get_types() {
+
+			return array(
+				''       => 'Unknown',
+				'card'   => 'Credit Card',
+				'check'  => 'Check/Cash',
+				'credit' => 'Credit'
+			);
 
 		}
 

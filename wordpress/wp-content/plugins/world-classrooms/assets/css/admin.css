@@ -1,0 +1,32 @@
+th#tour-code {
+	width: 15%;
+}
+th#tour-cost {
+	width: 10%;
+}
+th#tour-start {
+	width: 15%;
+}
+th#tour-users, 
+th#payment-status, 
+th#payment-amount {
+	width: 10%;
+}
+th#tour-close {
+	width: 15%;
+}
+body.edit-php.post-type-tour_payment th#title {
+	width: 15%;
+}
+body.edit-php.post-type-tour_payment th#author, 
+body.edit-php.post-type-tour_payment th#payment-tour {
+	width: 25%;
+}
+body.users-php th#trip_id {
+	width: 100px;
+}
+body.users-php th#remaining_balance, 
+body.users-php th#total_paid, 
+body.users-php th#trip_cost {
+	width: 10%;
+}

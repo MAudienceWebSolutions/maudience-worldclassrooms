@@ -1,20 +1,283 @@
-#profile-name, #tour-name { display: block; line-height: 32px; font-size: 32px; color: #004377; margin: 0 0 24px 0; padding: 0; font-weight: 100; }
-#profile-name span, #tour-name span, #remaining-payment span { display: block; float: right; color: #0096D6; }
-#profile-name .my-balance-label, #tour-name .my-balance-label { float: right; font-size: 10px; line-height: 14px; margin-top: -14px; }
-#account-type, #remaining-payment { margin-bottom: 48px; }
-#profile-details { width: 100%; margin: 24px 0; }
-#profile-details th { text-align: left; width: 30%; vertical-align: top; }
-#profile-details th span { color: red; }
-form #profile-details input { width: 100%; margin-bottom: 12px; }
-form #profile-details input.short { width: 40%; }
-form #submit-account-update { float: right; }
-#update-notice { display: block; line-height: 48px; padding: 0 12px; margin-bottom: 48px; color: white; }
-#update-notice.success { background-color: green; }
-#update-notice.error { background-color: red; }
-
-#partial-payment-options { float: none; clear: both; width: 100%; min-height: 48px; }
-#partial-payment-options div.full { float: none; width: 100%; }
-#partial-payment-options div.half { float: left; width: 45%; }
-#partial-payment-options div.middle { float: left; width: 10%; }
-
-body.page .side-nav ul li { font-size: 12px; }
+#profile-sidebar {
+	float: left;
+	width: 30%;
+	margin-right: 5%;
+	background-color: #fafafa;
+}
+#profile-content {
+	float: left;
+	width: 65%;
+}
+#profile-sidebar h2 {
+	padding: 0;
+	text-align: center;
+	line-height: 50px;
+	background-color: #2b3948;
+	color: white;
+	font-weight: 100;
+}
+#profile-sidebar #payment-due {
+	margin: 24px;
+	background-color: white;
+	padding: 12px;
+	text-align: center;
+}
+#profile-sidebar ul {
+	list-style-type: none;
+	margin-bottom: 250px;
+}
+#profile-sidebar ul li {
+	list-style-type: none;
+	background-color: #7a98b8;
+	border-bottom: 1px solid #fafafa;
+}
+#profile-sidebar ul li a {
+	color: #2b3948;
+	padding: 12px 24px;
+	line-height: 34px;
+	display: block;
+}
+#profile-sidebar ul li:hover a, 
+#profile-sidebar ul li.current a {
+	color: white;
+}
+#profile-sidebar ul li.current {
+	background-color: #59a0eb;
+}
+#profile-content h2.content-subheader {
+	margin-top: 48px;
+	font-weight: 100;
+	line-height: 48px;
+	margin-bottom: 12px;
+	border-bottom: 1px solid #2b3948;
+}
+#profile-content ul {
+	padding: 0 0 0 0;
+	margin: 0 0 0 0;
+	list-style-type: none;
+}
+#profile-content ul li {
+	margin-bottom: 6px;
+}
+#tab-details .tour-notice {
+	padding-top: 24px;
+}
+#tab-details ul li {
+	display: block;
+}
+#profile-content ul li strong {
+	color: #1a83c5;
+	float: left;
+	width: 30%;
+	list-style-type: none;
+}
+#my-account-overview {
+	margin-bottom: 24px;
+}
+#profile-content #my-account-overview ul li strong {
+	float: none;
+}
+#profile-content #my-account-overview ul li.box > div {
+	background-color: #dedede;
+	border: 1px solid #333;
+	padding: 12px;
+}
+#profile-content #my-account-overview ul li.box small {
+	display: block;
+}
+#profile-content #my-account-overview ul li.box h4 {
+	line-height: 32px;
+}
+#profile-content #my-account-overview ul.left li span {
+	padding-left: 12px;
+}
+#profile-content #my-account-overview ul.right li span {
+	display: block;
+	float: right;
+	text-align: right;
+}
+#profile-content .col-half, 
+#my-account-overview .half {
+	float: left;
+	width: 49%;
+	margin-right: 2%;
+}
+#profile-content .col-half.last, 
+#my-account-overview .half.last {
+	margin-right: 0;
+}
+#profile-content form {
+	padding-top: 24px;
+	display: block;
+	float: none;
+	clear: both;
+}
+#profile-content form h4 {
+	margin-bottom: 12px;
+	float: none;
+	clear: both;
+	margin-top: 12px;
+}
+#profile-content form input, 
+#profile-content form select {
+	border: 1px solid #2b3948;
+}
+#profile-content form .form-group {
+	display: block;
+	float: none;
+	min-height: 45px;
+}
+#profile-content form input[readonly="readonly"] {
+	background-color: #fafafa;
+	border-color: #ded3d6;
+}
+#profile-content form .form-group.has-error label, 
+#profile-content form .manual-input.has-error input, 
+#profile-content form .form-group.has-error .form-group-input, 
+#profile-content form .form-group.has-error .form-group-input input, 
+#profile-content form .form-group.has-error .form-group-input select, 
+#profile-content form .form-group.has-error .form-group-input span {
+	color: red;
+	border-color: red;
+}
+#profile-content form .form-group > label {
+	display: block;
+	float: left;
+	width: 95px;
+	min-height: 30px;
+	font-size: 12px;
+	padding-top: 6px;
+}
+#profile-content form .form-group.checkbox > label {
+	text-align: right;
+	line-height: inherit;
+}
+#profile-content form .form-group.inline > label {
+	text-align: center;
+	width: 80px;
+}
+#profile-content form .form-group.inline .form-group-input {
+	margin-left: 80px;
+}
+#profile-content form .form-group.checkbox > label input {
+	margin-right: 12px;
+}
+#profile-content form .form-group .form-group-input {
+	margin-left: 95px;
+}
+#profile-content form .form-group.checkbox .form-group-input, 
+#profile-content form .form-group .form-group-input label {
+	font-size: 12px;
+	line-height: 18px;
+}
+#profile-content form .form-group.checkbox .form-group-input {
+	margin-bottom: 12px;
+}
+#profile-content form .form-group .form-group-input span {
+	color: #aeb1b5;
+	font-style: italic;
+}
+#profile-content form .form-group .form-group-input label {
+	width: 50%;
+	float: left;
+	line-height: 30px;
+}
+#profile-content form .form-group .form-group-input label input[type="radio"] {
+	margin-right: 6px;
+}
+#profile-content form .form-group .form-group-input p, 
+#profile-content form .form-group .select {
+	font-size: 12px;
+	line-height: 30px;
+}
+#profile-content form .form-group .select {
+	height: 30px;
+}
+#profile-content form .form-group .form-group-input > input, 
+#profile-content form .payment-plan > label div.manual-input input, 
+#profile-content form .manual-input input {
+	width: 100%;
+	height: 30px;
+	font-size: 12px;
+	padding: 2px 6px;
+}
+#balance-after-payment {
+	font-weight: bold;
+}
+#profile-content form #submit-manual-payment {
+	background-color: #ff9900;
+	border: 1px solid #ff9900;
+	color: white;
+	font-size: 12px;
+	line-height: 16px;
+	padding: 6px 24px;
+	float: right;
+	margin-top: 12px;
+}
+#profile-content form #payment-manual-amount {
+	margin: 0 12px;
+}
+#profile-content form .form-group .form-group-input > input.auto-width, 
+#profile-content form .manual-input input.auto-width {
+	width: auto;
+}
+#profile-content form button {
+	background-color: #1a83c5;
+	border: 1px solid #1a83c5;
+	color: white;
+	font-size: 20px;
+	line-height: 32px;
+	padding: 6px 24px;
+}
+#profile-content a {
+	color: #1a83c5;
+	text-decoration: underline;
+}
+hr {
+	margin: 24px 0;
+}
+#profile-content .table {
+	font-size: 14px;
+	line-height: 24px;
+	font-weight: 100;
+	color: #2b3948;
+	text-align: left;
+}
+#profile-content .table th {
+	font-weight: bold;
+	text-align: left;
+	padding: 2px 4px;
+	border-bottom: 2px solid #333;
+}
+#profile-content .table tr.border td {
+	border: 1px solid #dedede;
+	padding: 2px 4px;
+}
+#profile-content .table tr.footer td {
+	padding: 24px 4px 2px 4px;
+}
+#profile-content th.history-col-count {
+	width: 25px;
+}
+#profile-content th.history-col-date {
+	width: 30%;
+}
+#profile-content th.history-col-desc {
+	width: auto;
+}
+#profile-content th.history-col-amount {
+	width: 30%;
+}
+#profile-content #tab-travelers {
+	
+}
+#profile-content #tab-travelers ul {
+	margin-bottom: 24px;
+}
+#profile-content #tab-travelers h4 {
+	line-height: 32px;
+	margin-bottom: 12px;
+}
+#amount-to-be-paid-wrapper {
+	padding: 12px 0;
+}

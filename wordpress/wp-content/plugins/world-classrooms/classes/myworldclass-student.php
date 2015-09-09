@@ -31,7 +31,7 @@ if ( ! class_exists( 'MyWorldClass_Student' ) ) :
 
 		public function load_user() {
 
-			$this->user = mywclass_get_userdata( $this->student_id );
+			$this->user    = mywclass_get_userdata( $this->student_id );
 			$this->balance = mywclass_get_users_balance( $this->student_id );
 
 			if ( user_can( $this->student_id, 'edit_users' ) )
